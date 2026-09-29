@@ -30,7 +30,7 @@
             <div class="input-row">
                 <div class="input-group">
                     <label>TOTAL BUDGET</label>
-                    <input type="number" id="budgetInput" placeholder="2 500">
+                    <input type="number" id="budgetInput" placeholder="2500">
                 </div>
                 <div class="input-group">
                     <label>DURATION</label>
@@ -50,13 +50,21 @@
     <main id="resultsView" class="view-section" style="display: none;">
         <div class="hero-text results-hero">
             <h1 class="highlight">Your Matches</h1>
-            <p class="results-count"><span id="matchCount">0</span> DESTINATIONS</p>
         </div>
 
-        <div class="cards-grid" id="cardsGrid">
+        <!-- Changed ID to landmarkList to match your app.js -->
+        <div class="cards-grid landmark-list" id="landmarkList">
             <!-- Cards populated by JavaScript -->
         </div>
     </main>
+
+    <!-- ADDED: The hidden modal for viewing details -->
+    <div id="landmarkModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
