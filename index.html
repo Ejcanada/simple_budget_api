@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Top Navigation Logo -->
     <header class="logo-header" onclick="resetView()">
         <svg class="map-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M9 20L3 17V4L9 7M9 20L15 17M9 20V7M15 17L21 20V7L15 4M15 17V4M9 7L15 4" stroke="#4a86e8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -19,11 +18,10 @@
         <span class="logo-text">Heritage Travels • Budget Matcher</span>
     </header>
 
-    <!-- View 1: Search Form -->
     <main id="searchView" class="view-section active">
         <div class="hero-text">
             <h1>Where does your<br><span class="highlight">budget take you?</span></h1>
-            <p>Discover gentle escapes matched to your<br>travel budget and trip length.</p>
+            <p>Discover historical escapes matched to your<br>travel budget and trip length.</p>
         </div>
 
         <div class="search-card">
@@ -43,22 +41,21 @@
             <button onclick="findMatches()" class="primary-btn">Find Matches</button>
         </div>
         
-        <p class="footer-note">Prices are estimated daily averages • Always verify before booking</p>
+        <p class="footer-note">Calculations based on landmark entry fees • Always verify before booking</p>
     </main>
 
-    <!-- View 2: Results Grid -->
     <main id="resultsView" class="view-section" style="display: none;">
         <div class="hero-text results-hero">
             <h1 class="highlight">Your Matches</h1>
+            <p class="results-count"><span id="matchCount">0</span> DESTINATIONS</p>
         </div>
 
-        <!-- Changed ID to landmarkList to match your app.js -->
-        <div class="cards-grid landmark-list" id="landmarkList">
+        <div class="cards-grid" id="cardsGrid">
             <!-- Cards populated by JavaScript -->
         </div>
     </main>
 
-    <!-- ADDED: The hidden modal for viewing details -->
+    <!-- Modal for viewing details -->
     <div id="landmarkModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
