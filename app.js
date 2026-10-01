@@ -1,152 +1,192 @@
 const API_URL = "https://simplebudgetmatcherapi.vercel.app/"; 
-const API_KEY = "my_secret_budget_key";
+const API_KEY = "my_secret_landmark_key"; // Using the auth key from your original API
 
 const FETCH_OPTIONS = {
     headers: { "x-api-key": API_KEY }
 };
 
-let currentMatches = []; // Stores the current results for the modal
+let currentMatches = [];
 
-// BUILD A FULL IMAGE URL 
-function getImageUrl(image) {
-    if (!image || image.trim() === "") return "";
-    if (image.startsWith("http")) return image; 
+function resetView() {
+    document.getElementById('resultsView').style.display = 'none';
+    document.getElementById('searchView').style.display = 'block';
+}
 
-    if (image.includes("images/")) {
-        return image.startsWith("/") ? image.substring(1) : image;
+function getImageUrl(icon) {
+    if (!icon || icon.trim() === "") return "";
+    if (icon.startsWith("http")) return icon; 
+    if (icon.includes("images/")) {
+        return icon.startsWith("/") ? icon.substring(1) : icon;
     } else {
-        const cleanIcon = image.startsWith("/") ? image.substring(1) : image;
+        const cleanIcon = icon.startsWith("/") ? icon.substring(1) : icon;
         return `images/${cleanIcon}`;
     }
 }
 
-// GET MATCHES BASED ON BUDGET
+// Parses strings like "$45 USD" or "Free" into numerical costs for the math
+function extractCost(feeString) {
+    if (!feeString || feeString.toLowerCase() === "free") return 0;
+    const match = feeString.match(/\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : 0;
+}
+
 async function findMatches() {
-    // Read from inputs, fallback to default values if empty
-    const budgetInput = document.getElementById("budgetInput");
-    const durationInput = document.getElementById("durationInput");
+    const budgetInput = document.getElementById("budgetInput").value;
+    const durationInput = document.getElementById("durationInput").value;
     
-    const budget = budgetInput ? budgetInput.value : 2500;
-    const duration = durationInput ? durationInput.value : 7;
+    if (!budgetInput || !durationInput) {
+        alert("Please enter both your budget and duration.");
+        return;
+    }
 
-    const landmarkList = document.getElementById("landmarkList");
-    if (!landmarkList) return;
-
-    landmarkList.innerHTML = `
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <p>Calculating budget matches...</p>
-        </div>
-    `;
+    const budget = parseFloat(budgetInput);
+    const duration = parseInt(durationInput);
+    const btn = document.querySelector('.primary-btn');
+    btn.textContent = "Calculating...";
 
     try {
-        const response = await fetch(`${API_URL}/match?budget=${budget}&duration=${duration}`, FETCH_OPTIONS);
+        // Fetching from the PROFESSOR'S untouched API
+        const response = await fetch(`${API_URL}/landmarks`, FETCH_OPTIONS);
+        if (!response.ok) throw new Error("API Connection Failed");
         const data = await response.json();
         
-        currentMatches = data.matches || [];
-        displayMatches(currentMatches, data.duration);
-    }
-    catch (error) {
+        const matches = [];
+        
+        // Let the Javascript do the math instead of the backend
+        data.landmarks.forEach(landmark => {
+            const dailyCost = extractCost(landmark.entry_fee);
+            const tripTotal = dailyCost * duration;
+            const spare = budget - tripTotal;
+            
+            if (spare >= 0) {
+                matches.push({
+                    data: landmark,
+                    dailyCost: dailyCost,
+                    tripTotal: tripTotal,
+                    spare: spare
+                });
+            }
+        });
+
+        currentMatches = matches;
+        
+        document.getElementById('matchCount').textContent = matches.length;
+        renderCards(matches, duration);
+        
+        document.getElementById('searchView').style.display = 'none';
+        document.getElementById('resultsView').style.display = 'block';
+        
+    } catch (error) {
         console.error(error);
-        landmarkList.innerHTML = "Unable to connect to the API.";
+        alert("Unable to connect to the API. Make sure index.py is running in the api folder.");
+    } finally {
+        btn.textContent = "Find Matches";
     }
 }
 
-// DISPLAY MATCHES 
-function displayMatches(matches, duration) {
-    const landmarkList = document.getElementById("landmarkList");
-    landmarkList.innerHTML = "";
+function renderCards(matches, duration) {
+    const grid = document.getElementById('cardsGrid');
+    grid.innerHTML = "";
 
     if (matches.length === 0) {
-        landmarkList.innerHTML = `<p class="no-results">No destinations found for this budget. Try increasing your amount.</p>`;
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align:center; color: #808080;">No destinations found for this budget. Try adjusting your inputs.</p>`;
         return;
     }
 
     matches.forEach((match, index) => {
+        const landmark = match.data;
         const card = document.createElement("div");
-        card.className = "landmark-card";
-        
-        card.style.animationDelay = `${index * 0.05}s`;
+        card.className = "match-card";
 
-        const hasIcon = match.image && match.image.trim() !== "";
+        const hasIcon = landmark.icon && landmark.icon.trim() !== "";
         const iconHTML = hasIcon
-            ? `<img src="${getImageUrl(match.image)}" alt="${match.name}" class="landmark-icon" onerror="this.outerHTML='<div class=\\'landmark-icon no-image\\'></div>'">`
-            : `<div class="landmark-icon no-image"></div>`;
+            ? `<img src="${getImageUrl(landmark.icon)}" alt="${landmark.title}">`
+            : `<div class="no-image"></div>`;
 
         card.innerHTML = `
-            ${iconHTML}
-            <div class="card-info">
-                <h3>${match.name}</h3>
-                <div class="landmark-location">${match.country}</div>
-                <span class="type-badge">${match.tag}</span>
-                <p><strong>Est. Per Day:</strong> $${match.daily_cost}</p>
-                <p><strong>${duration}-Day Total:</strong> $${match.trip_total}</p>
-                <button onclick="viewMatch(${index})"> View Details </button>
+            <div class="card-image-container">
+                <span class="tag">${landmark.site_type}</span>
+                ${iconHTML}
+            </div>
+            <div class="card-body">
+                <div class="card-header">
+                    <div class="card-title">
+                        <h3>${landmark.title}</h3>
+                        <p>${landmark.country}</p>
+                    </div>
+                    <div class="action-icon" onclick="viewMatch(${index})">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                    </div>
+                </div>
+                
+                <div class="card-stats">
+                    <div class="stat-row">
+                        <span class="label">EST. ENTRY / DAY</span>
+                        <span class="value green">${match.dailyCost === 0 ? 'Free' : '$' + match.dailyCost}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">${duration}-DAY TOTAL</span>
+                        <span class="value">$${match.tripTotal}</span>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    $${match.spare} to spare
+                </div>
             </div>
         `;
-        landmarkList.appendChild(card);
+        grid.appendChild(card);
     });
 }
 
-// GET ONE MATCH FOR MODAL
 function viewMatch(index) {
-    try {
-        const match = currentMatches[index];
-        const modalBody = document.getElementById("modalBody");
+    const match = currentMatches[index];
+    const landmark = match.data;
+    const modalBody = document.getElementById("modalBody");
 
-        const hasIcon = match.image && match.image.trim() !== "";
-        const heroHTML = hasIcon
-            ? `
-                <div class="modal-hero" style="background-image: url('${getImageUrl(match.image)}');">
-                    <div class="modal-hero-overlay"></div>
-                    <div class="modal-hero-text">
-                        <h2>${match.name}</h2>
-                        <p>${match.country}</p>
-                    </div>
-                </div>
-            `
-            : `
-                <div class="modal-hero no-image"></div>
-                <h2 style="margin: 15px 0 0 0; color: #1f1f1f;">${match.name}</h2>
-                <p style="color: #555; margin-top: 5px;">${match.country}</p>
-            `;
-
-        modalBody.innerHTML = `
-            ${heroHTML}
-            <div class="modal-grid">
-                <div class="modal-item"><strong>Travel Vibe:</strong> ${match.tag}</div>
-                <div class="modal-item"><strong>Daily Cost:</strong> $${match.daily_cost}</div>
-                <div class="modal-item"><strong>Total Trip Cost:</strong> $${match.trip_total}</div>
-                <div class="modal-item"><strong>Money to Spare:</strong> $${match.spare}</div>
-                
-                <div class="modal-desc">
-                    <strong>Why ${match.name}?</strong><br>
-                    This destination comfortably fits your budget profile. After covering basic estimated costs for your trip, you will have $${match.spare} left over for souvenirs, extra activities, or emergencies!
+    const hasIcon = landmark.icon && landmark.icon.trim() !== "";
+    const heroHTML = hasIcon
+        ? `
+            <div class="modal-hero" style="background-image: url('${getImageUrl(landmark.icon)}');">
+                <div class="modal-hero-overlay"></div>
+                <div class="modal-hero-text">
+                    <h2>${landmark.title}</h2>
+                    <p>${landmark.country} | ${landmark.region}</p>
                 </div>
             </div>
+        `
+        : `
+            <div class="modal-hero no-image"></div>
+            <h2 style="margin: 15px 0 0 0; color: #1f1f1f;">${landmark.title}</h2>
         `;
 
-        // Show the modal
-        document.getElementById("landmarkModal").classList.add("show");
-    }
-    catch (error) {
-        console.error(error);
-        alert("Unable to retrieve details.");
-    }
+    modalBody.innerHTML = `
+        ${heroHTML}
+        <div class="modal-grid">
+            <div class="modal-item"><strong>Established:</strong> ${landmark.established_year}</div>
+            <div class="modal-item"><strong>Type:</strong> ${landmark.site_type}</div>
+            <div class="modal-item"><strong>Rating:</strong> ${landmark.visitor_rating}</div>
+            <div class="modal-item"><strong>Entry Fee:</strong> ${landmark.entry_fee}</div>
+            <div class="modal-item"><strong>Architects:</strong> ${landmark.notable_architects}</div>
+            <div class="modal-item"><strong>Governing Body:</strong> ${landmark.governing_body}</div>
+            
+            <div class="modal-desc">
+                <strong>Description:</strong><br>
+                ${landmark.description}
+            </div>
+        </div>
+    `;
+
+    document.getElementById("landmarkModal").classList.add("show");
 }
 
-// CLOSE MODAL FUNCTION
 function closeModal() {
     document.getElementById("landmarkModal").classList.remove("show");
 }
 
-// CLOSE MODAL WHEN CLICKING OUTSIDE THE BOX
 window.onclick = function(event) {
     const modal = document.getElementById("landmarkModal");
-    if (event.target === modal) {
-        closeModal();
-    }
+    if (event.target === modal) closeModal();
 };
-
-// INITIAL LOAD
-findMatches();
